@@ -1,4 +1,3 @@
-Tmux-auto
-=========
+# tmux-auto
 
-Tmux-auto is a tmux automation tool
+It is a tmux automation tool
