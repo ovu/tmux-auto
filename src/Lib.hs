@@ -25,12 +25,23 @@ getChilProcessName processNumber = do
     ( exitCode, childProcessNumber, _) <- lift $ readProcessWithExitCode "bash" ["-c", "pgrep -P " ++ processNumber] []
     guard ( exitCode == ExitSuccess )
     let childProcessNumberWithoutFormat = removeEndOfLine childProcessNumber
-    ( exitCodeChild, childProcessName, _ ) <- lift $ readProcessWithExitCode "bash" ["-c", "ps -p " ++  childProcessNumberWithoutFormat] []
+    ( exitCodeChild, childProcessName, _ ) <- lift $ 
+                                            readProcessWithExitCode "bash" ["-c", "ps -p " ++  childProcessNumberWithoutFormat ++ " -o command"] []
     guard ( exitCodeChild == ExitSuccess )
-    return $ ( last . splitOn "/" ) $ removeEndOfLine childProcessName
+    return $ ( last . splitOn "/" ) $ removeCommandTitle $ removeEndOfLine childProcessName
 
 removeEndOfLine :: String -> String
 removeEndOfLine = filter (/= '\n')
 
 removeSingleQuotes :: String -> String
 removeSingleQuotes = filter (/= '\'')
+
+replace :: Eq a => [a] -> [a] -> [a] -> [a]
+replace [] _ _ = []
+replace s find repl =
+    if take (length find) s == find
+        then repl ++ (replace (drop (length find) s) find repl)
+        else [head s] ++ (replace (tail s) find repl)
+
+removeCommandTitle :: String -> String
+removeCommandTitle titleWithProcessName = replace titleWithProcessName "COMMAND" ""
