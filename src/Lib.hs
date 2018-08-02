@@ -1,5 +1,6 @@
 module Lib
     ( getRunningProcessOnWindow
+      , getBranchOnWindow
     ) where
 
 import System.Process
@@ -30,6 +31,22 @@ getChilProcessName processNumber = do
     guard ( exitCodeChild == ExitSuccess )
     return $ ( last . splitOn "/" ) $ removeCommandTitle $ removeEndOfLine childProcessName
 
+getWindowCurrentDirectory :: String -> MaybeT IO String
+getWindowCurrentDirectory windowNameAndPane = do
+    ( exitCode, windowDir, _ ) <- lift $ readProcessWithExitCode "tmux" ["list-panes", "-t", windowNameAndPane, "-F", "'#{pane_current_path}'"] []
+    guard ( exitCode == ExitSuccess )
+    return $ (removeEndOfLine . removeSingleQuotes) windowDir
+
+getBranchOnWindow :: String -> MaybeT IO String
+getBranchOnWindow windowNameAndPane = do 
+    windowDir <-  getWindowCurrentDirectory windowNameAndPane
+    lift $ print windowDir
+    ( exitCodeChild, dirGitBranch, _ ) <- lift $ 
+                                            readProcessWithExitCode "bash" ["-c", "git --git-dir " ++  windowDir ++ "/.git rev-parse --abbrev-ref HEAD"] []
+    guard ( exitCodeChild == ExitSuccess )
+    return $ removeEndOfLine dirGitBranch
+
+-- Help functions
 removeEndOfLine :: String -> String
 removeEndOfLine = filter (/= '\n')
 

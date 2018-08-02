@@ -10,11 +10,12 @@ import Control.Monad (forM, forM_)
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.Class
 import Data.Data
+import Data.Maybe (fromMaybe)
 import Text.PrettyPrint.Tabulate
 import qualified GHC.Generics as G
 import qualified Text.PrettyPrint.Tabulate as T
 
-data ProcessOnWindow = ProcessOnWindow {windowName::String, processName::String} deriving (Data, G.Generic) 
+data ProcessOnWindow = ProcessOnWindow {windowName::String, processName::String, branch::String} deriving (Data, G.Generic) 
 
 instance T.Tabulate ProcessOnWindow T.DoNotExpandWhenNested
 
@@ -28,7 +29,7 @@ main = do
   where
     getStatus windowName = do
       processName <- runMaybeT $ getRunningProcessOnWindow $ windowName ++ ":1"
-      case processName of
-        Nothing -> return ProcessOnWindow{ windowName=windowName, processName=""}
-        Just name -> return ProcessOnWindow{ windowName=windowName, processName=name}
-
+      gitBranch <- runMaybeT $ getBranchOnWindow $ windowName ++ ":1"
+      let processNameValue = fromMaybe "" processName
+      let gitBranchValue = fromMaybe "" gitBranch
+      return ProcessOnWindow{ windowName=windowName, processName=processNameValue, branch=gitBranchValue}
