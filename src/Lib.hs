@@ -1,10 +1,16 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Lib
     ( getRunningProcessOnWindow
       , getBranchOnWindow
+      , gitPullOnWindow
+      , getAllGitRemoteBranches
     ) where
+
 
 import System.Process
 import Data.Maybe
+import qualified Data.Text as T
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.Class
 import Control.Monad
@@ -45,7 +51,28 @@ getBranchOnWindow windowNameAndPane = do
     guard ( exitCodeChild == ExitSuccess )
     return $ removeEndOfLine dirGitBranch
 
--- Help functions
+gitPullOnWindow :: String -> MaybeT IO String
+gitPullOnWindow windowNameAndPane = do 
+    windowDir <-  getWindowCurrentDirectory windowNameAndPane
+    ( exitCodeChild, gitPullResult, _ ) <- lift $ 
+                                            readProcessWithExitCode "bash" ["-c", "git --git-dir " ++  windowDir ++ "/.git pull"] []
+    guard ( exitCodeChild == ExitSuccess )
+    return gitPullResult
+
+getAllGitRemoteBranches :: String -> MaybeT IO [String]
+getAllGitRemoteBranches windowNameAndPane = do 
+    windowDir <-  getWindowCurrentDirectory windowNameAndPane
+    ( exitCodeChild, gitRemoteBranchesResult, _ ) <- lift $ 
+                                            readProcessWithExitCode "bash" ["-c", "git --git-dir " ++  windowDir ++ "/.git branch --remote"] []
+    guard ( exitCodeChild == ExitSuccess )
+    return $ removeAllEmptyLines $ map trim  $ (splitOnEndOfLine . removeOrigin) gitRemoteBranchesResult
+  where
+    removeAllEmptyLines = filter (/= "")
+    trim = T.unpack . T.strip . T.pack
+    splitOnEndOfLine = splitOn "\n"
+    removeOrigin aString  = replace aString "origin/" ""
+
+-- Helper functions
 removeEndOfLine :: String -> String
 removeEndOfLine = filter (/= '\n')
 

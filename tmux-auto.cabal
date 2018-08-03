@@ -32,6 +32,7 @@ library
      , process
      , transformers
      , split
+     , text >= 1.2.2.2
   exposed-modules:
       Lib
   other-modules:
