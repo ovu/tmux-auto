@@ -40,7 +40,6 @@ getWindowCurrentDirectory windowNameAndPane = do
 getBranchOnWindow :: String -> MaybeT IO String
 getBranchOnWindow windowNameAndPane = do 
     windowDir <-  getWindowCurrentDirectory windowNameAndPane
-    lift $ print windowDir
     ( exitCodeChild, dirGitBranch, _ ) <- lift $ 
                                             readProcessWithExitCode "bash" ["-c", "git --git-dir " ++  windowDir ++ "/.git rev-parse --abbrev-ref HEAD"] []
     guard ( exitCodeChild == ExitSuccess )
