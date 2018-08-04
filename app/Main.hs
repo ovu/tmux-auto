@@ -83,7 +83,9 @@ executeScripts targetBranch window = do
   resultInitialScripts <- runMaybeT $ executeScriptOnTmuxWindow (windowName ++ ":1") (scriptInitial window)
   putStrLn $ "Initial script result:" ++ show resultInitialScripts
   if fst changeBranchValue then do 
-    printInYellowLn $ "Changing to branch:" ++ snd changeBranchValue
+    beforeChangingRes <- runMaybeT $ executeScriptOnTmuxWindow (windowName ++ ":1") (scriptBeforeChangingBranch window)
+    putStrLn $ "Before changing branch result:" ++  show beforeChangingRes
+    printInMagentaLn $ "Changing to branch:" ++ snd changeBranchValue
     changeBranchRes <- runMaybeT $ executeScriptOnTmuxWindow (windowName ++ ":1") ["git checkout " ++ snd changeBranchValue, "Enter"]
     putStrLn $ "Checkout branch result:" ++  show changeBranchRes
   else
@@ -111,3 +113,4 @@ matchBranchInBranches listOfBranches branch =
 
 printInGreenLn aString = putStrLn $ "\x1b[32m" ++ aString ++ "\x1b[0m"
 printInYellowLn aString = putStrLn $ "\x1b[33m" ++ aString ++ "\x1b[0m"
+printInMagentaLn aString = putStrLn $ "\x1b[35m" ++ aString ++ "\x1b[0m"
