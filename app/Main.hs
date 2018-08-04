@@ -11,6 +11,7 @@ import Control.Monad (forM, forM_)
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.Class
 import Data.Data
+import Data.List (find, isPrefixOf)
 import System.Environment
 import Data.Maybe (fromMaybe)
 import Text.PrettyPrint.Tabulate
@@ -21,7 +22,27 @@ data ProcessOnWindow = ProcessOnWindow {windowName::String, processName::String,
 
 instance T.Tabulate ProcessOnWindow T.DoNotExpandWhenNested
 
-listOfWindows = ["git-prompt", "tmux-auto"]
+data WindowScript = WindowScript {name:: String, 
+  scriptInitial:: [String], 
+  scriptBeforeChangingBranch:: [String],
+  scriptFinal:: [String]
+}
+
+gitPrompt = WindowScript{
+  name="git-prompt", 
+  scriptInitial = ["C-c", "C-c", "Enter"],
+  scriptBeforeChangingBranch= ["C-c", "Enter"], 
+  scriptFinal= ["node", "Enter"]
+}
+
+tmuxAuto = WindowScript{
+  name="tmux-auto", 
+  scriptInitial = ["C-c","Enter"],
+  scriptBeforeChangingBranch= ["C-c", "Enter"], 
+  scriptFinal= ["node", "Enter"]
+}
+
+listOfWindows = [ gitPrompt  , tmuxAuto]
 -- 1. Git pull
 -- b <- GetCurrentBranch
 -- a getAllBranches
@@ -33,25 +54,59 @@ main :: IO ()
 main = do
   branchNameArgument <- getArgs
   print branchNameArgument
-  forM_ listOfWindows executeScripts
+  let targetBranch = head branchNameArgument
+  forM_ listOfWindows (executeScripts targetBranch)
   putStrLn "---------------------------"
   status <- forM listOfWindows getStatus
   T.printTable  status
   where
-    getStatus windowName = do
+    getStatus window = do
+      let windowName = name window
       processName <- runMaybeT $ getRunningProcessOnWindow $ windowName ++ ":1"
       gitBranch <- runMaybeT $ getBranchOnWindow $ windowName ++ ":1"
       let processNameValue = fromMaybe "" processName
       let gitBranchValue = fromMaybe "" gitBranch
       return ProcessOnWindow{ windowName=windowName, processName=processNameValue, branch=gitBranchValue}
-    executeScripts windowName = do 
-      printInGreenLn $ "Updating window ---> " ++ windowName
+    executeScripts targetBranch window = do 
+      let windowName = name window
+      printInGreenLn $ "Updating ---> " ++ windowName
       pullResult <- runMaybeT $ gitPullOnWindow windowName
       let pullResultValue = fromMaybe "" pullResult
       putStrLn $ "Git pull result:" ++ pullResultValue
       gitBranches <- runMaybeT $ getAllGitRemoteBranches windowName
       let gitBranchesValue = fromMaybe [] gitBranches
       _ <- mapM putStrLn gitBranchesValue
+      currentBranch <- runMaybeT $ getBranchOnWindow windowName
+      let changeBranch = wantsToChangeBranch currentBranch gitBranches targetBranch
+      let changeBranchValue = fromMaybe False changeBranch
+      putStrLn $ show changeBranch
+      resultInitialScripts <- runMaybeT $ executeScriptOnTmuxWindow (windowName ++ ":1") (scriptInitial window)
+      putStrLn $ "Initial script result:" ++ show resultInitialScripts
+      if (changeBranchValue == True) then do 
+        changeBranchRes <- runMaybeT $ executeScriptOnTmuxWindow (windowName ++ ":1") (["git checkout " ++ targetBranch, "Enter"])
+        putStrLn $ "Checkout branch result:" ++  show changeBranchRes
+      else
+        putStrLn "Already on branch. Branch not changed"
+      resultFinalScripts <- runMaybeT $ executeScriptOnTmuxWindow (windowName ++ ":1") (scriptFinal window)
+      putStrLn $ "Final script result:" ++ show resultFinalScripts
       putStrLn "Done"
+
+wantsToChangeBranch :: Maybe String -> Maybe [String] -> String -> Maybe Bool
+wantsToChangeBranch currentBranch gitBranches targetBranch = do
+    current <- currentBranch
+    branches <- gitBranches 
+    matchedBranch <- matchBranchInBranches branches current
+    return $ matchedBranch /= targetBranch
+
+
+matchBranchInBranches :: [String] -> String -> Maybe String
+matchBranchInBranches listOfBranches branch =
+    case exactMatch of 
+      Nothing -> partialMatch
+      matchedBranch -> matchedBranch
+    where 
+      exactMatch = find (== branch) listOfBranches
+      partialMatch = find (isPrefixOf $ "feature/" ++ branch) listOfBranches
+
 
 printInGreenLn aString = putStrLn $ "\x1b[32m" ++ aString ++ "\x1b[0m"

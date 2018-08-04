@@ -51,6 +51,7 @@ executable tmux-auto-exe
     , tmux-auto
     , transformers
     , pptable
+    , MissingH >= 1.4.0.1
   default-language: Haskell2010
 
 test-suite tmux-auto-test

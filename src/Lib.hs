@@ -5,6 +5,7 @@ module Lib
       , getBranchOnWindow
       , gitPullOnWindow
       , getAllGitRemoteBranches
+      , executeScriptOnTmuxWindow
     ) where
 
 
@@ -71,6 +72,13 @@ getAllGitRemoteBranches windowNameAndPane = do
     trim = T.unpack . T.strip . T.pack
     splitOnEndOfLine = splitOn "\n"
     removeOrigin aString  = replace aString "origin/" ""
+
+executeScriptOnTmuxWindow :: String -> [String] -> MaybeT IO String
+executeScriptOnTmuxWindow windowNameAndPane scripts = do
+    let arguments = ["send-keys", "-t", windowNameAndPane] ++ scripts
+    ( exitCode, resultScripts, _ ) <- lift $ readProcessWithExitCode "tmux" arguments []
+    guard ( exitCode == ExitSuccess )
+    return resultScripts
 
 -- Helper functions
 removeEndOfLine :: String -> String
