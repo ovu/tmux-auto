@@ -13,40 +13,38 @@ import Data.Data
 import Data.List (find, isPrefixOf)
 import System.Environment
 import Data.Maybe (fromMaybe)
+import Data.Aeson
 import Safe (headMay)
 import Text.PrettyPrint.Tabulate
 import qualified GHC.Generics as G
 import qualified Text.PrettyPrint.Tabulate as T
+import qualified Data.ByteString.Lazy as B
 
 
 data ProcessOnWindow = ProcessOnWindow {windowName::String, processName::String, branch::String} deriving (Data, G.Generic) 
 
 instance T.Tabulate ProcessOnWindow T.DoNotExpandWhenNested
 
-data WindowScript = WindowScript {name:: String, 
-  scriptInitial:: [String], 
+data WindowScript = WindowScript {
+  name:: String,
+  scriptInitial:: [String],
   scriptBeforeChangingBranch:: [String],
   scriptFinal:: [String]
-}
+} deriving (Show, G.Generic)
 
-gitPrompt = WindowScript{
-  name="git-prompt", 
-  scriptInitial = ["C-c", "C-c", "Enter"],
-  scriptBeforeChangingBranch= ["C-c", "Enter"], 
-  scriptFinal= ["node", "Enter"]
-}
+instance FromJSON WindowScript
+instance ToJSON WindowScript
 
-tmuxAuto = WindowScript{
-  name="tmux-auto", 
-  scriptInitial = ["C-c","Enter"],
-  scriptBeforeChangingBranch= ["C-c", "Enter"], 
-  scriptFinal= ["node", "Enter"]
-}
-
-listOfWindows = [ gitPrompt  , tmuxAuto]
+jsonConfigFile = ".tmux-auto/tmux-auto.config"
+getJson = B.readFile jsonConfigFile
 
 main :: IO ()
 main = do
+  b <- (eitherDecode <$> getJson) :: IO (Either String [WindowScript])
+  listOfWindows <- case b of
+        Left err -> do putStrLn err 
+                       return []
+        Right ps -> return ps
   branchNameArgument <- getArgs
   let targetBranchMaybe = headMay branchNameArgument
   case targetBranchMaybe of 
