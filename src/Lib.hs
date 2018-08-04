@@ -18,6 +18,7 @@ import Control.Monad
 import System.Exit
 import Text.Printf
 import Data.List.Split
+import Data.String.Utils (strip, replace)
 
 someFunc :: IO ()
 someFunc = putStrLn "someFunc"
@@ -66,12 +67,11 @@ getAllGitRemoteBranches windowNameAndPane = do
     ( exitCodeChild, gitRemoteBranchesResult, _ ) <- lift $ 
                                             readProcessWithExitCode "bash" ["-c", "git --git-dir " ++  windowDir ++ "/.git branch --remote"] []
     guard ( exitCodeChild == ExitSuccess )
-    return $ removeAllEmptyLines $ map trim  $ (splitOnEndOfLine . removeOrigin) gitRemoteBranchesResult
+    return $ removeAllEmptyLines $ map strip  $ (splitOnEndOfLine . removeOrigin) gitRemoteBranchesResult
   where
     removeAllEmptyLines = filter (/= "")
-    trim = T.unpack . T.strip . T.pack
     splitOnEndOfLine = splitOn "\n"
-    removeOrigin aString  = replace aString "origin/" ""
+    removeOrigin aString  = replace "origin/" "" aString
 
 executeScriptOnTmuxWindow :: String -> [String] -> MaybeT IO String
 executeScriptOnTmuxWindow windowNameAndPane scripts = do
@@ -87,12 +87,5 @@ removeEndOfLine = filter (/= '\n')
 removeSingleQuotes :: String -> String
 removeSingleQuotes = filter (/= '\'')
 
-replace :: Eq a => [a] -> [a] -> [a] -> [a]
-replace [] _ _ = []
-replace s find repl =
-    if take (length find) s == find
-        then repl ++ (replace (drop (length find) s) find repl)
-        else [head s] ++ (replace (tail s) find repl)
-
 removeCommandTitle :: String -> String
-removeCommandTitle titleWithProcessName = replace titleWithProcessName "COMMAND" ""
+removeCommandTitle titleWithProcessName = replace  "COMMAND" "" titleWithProcessName

@@ -73,7 +73,7 @@ executeScripts targetBranch window = do
   putStrLn $ "Git pull result:" ++ pullResultValue
   gitBranches <- runMaybeT $ getAllGitRemoteBranches windowName
   let gitBranchesValue = fromMaybe [] gitBranches
-  -- _ <- mapM putStrLn gitBranchesValue
+  _ <- mapM putStrLn gitBranchesValue
   currentBranch <- runMaybeT $ getBranchOnWindow windowName
   let changeBranch = wantsToChangeBranch currentBranch gitBranches targetBranch
   let changeBranchValue = fromMaybe (False, "") changeBranch
