@@ -12,6 +12,7 @@ import Control.Monad.Trans.Class
 import Data.Data
 import Data.List (find, isPrefixOf)
 import System.Environment
+import System.Directory (getHomeDirectory)
 import Data.Maybe (fromMaybe)
 import Data.Aeson
 import Safe (headMay)
@@ -35,14 +36,16 @@ data WindowScript = WindowScript {
 instance FromJSON WindowScript
 instance ToJSON WindowScript
 
-jsonConfigFile = ".tmux-auto/tmux-auto.config"
-getJson = B.readFile jsonConfigFile
+configFile = "/.tmux-auto/tmux-auto.config"
+getJson = B.readFile
 
 main :: IO ()
 main = do
-  b <- (eitherDecode <$> getJson) :: IO (Either String [WindowScript])
+  homeDir <- getHomeDirectory
+  b <- (eitherDecode <$> getJson (homeDir ++ configFile)) :: IO (Either String [WindowScript])
   listOfWindows <- case b of
         Left err -> do putStrLn err 
+                       putStrLn "Error in config: Json Format is invalid!"
                        return []
         Right ps -> return ps
   branchNameArgument <- getArgs
