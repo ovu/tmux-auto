@@ -6,11 +6,14 @@ module Lib
       , gitPullOnWindow
       , getAllGitRemoteBranches
       , executeScriptOnTmuxWindow
+      , getNumberOfChangedFiles
+      , getNumberOfUntrackedFiles
     ) where
 
 
 import System.Process
 import Data.Maybe
+import Data.List (isPrefixOf)
 import qualified Data.Text as T
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.Class
@@ -79,6 +82,28 @@ executeScriptOnTmuxWindow windowNameAndPane scripts = do
     ( exitCode, resultScripts, _ ) <- lift $ readProcessWithExitCode "tmux" arguments []
     guard ( exitCode == ExitSuccess )
     return resultScripts
+
+getNumberOfChangedFiles :: String -> MaybeT IO Int
+getNumberOfChangedFiles windowNameAndPane = do
+        windowDir <-  getWindowCurrentDirectory windowNameAndPane
+        ( exitCode, commandResult, _ ) <- lift $ readProcessWithExitCode "bash" ["-c", "git --git-dir " ++ windowDir ++  "/.git diff --name-status"] []
+        guard $ exitCode == ExitSuccess
+        let changedLines = lines commandResult
+        let unmergedFiles = length $ getUnmergedLines changedLines
+        let changedFiles = length changedLines - unmergedFiles
+        return changedFiles
+    where
+      getUnmergedLines = filter $ isPrefixOf "U"
+
+getNumberOfUntrackedFiles :: String -> MaybeT IO Int
+getNumberOfUntrackedFiles windowNameAndPane = do
+        windowDir <-  getWindowCurrentDirectory windowNameAndPane
+        ( exitCode, commandResult, _ ) <- lift $ readProcessWithExitCode "bash" ["-c", "git --git-dir " ++ windowDir ++  "/.git status --s -uall"] []
+        guard $ exitCode == ExitSuccess
+        let statusLines = lines commandResult
+        let untrackedFiles = length $ getUntrackedLines statusLines
+        return untrackedFiles
+    where getUntrackedLines = filter $ isPrefixOf "??"
 
 -- Helper functions
 removeEndOfLine :: String -> String

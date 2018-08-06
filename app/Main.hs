@@ -22,7 +22,7 @@ import qualified Text.PrettyPrint.Tabulate as T
 import qualified Data.ByteString.Lazy as B
 
 
-data ProcessOnWindow = ProcessOnWindow {windowName::String, processName::String, branch::String} deriving (Data, G.Generic) 
+data ProcessOnWindow = ProcessOnWindow {windowName::String, processName::String, branch::String, changedFiles::String, untrackedFiles::String} deriving (Data, G.Generic) 
 
 instance T.Tabulate ProcessOnWindow T.DoNotExpandWhenNested
 
@@ -61,9 +61,13 @@ main = do
       let windowName = name window
       processName <- runMaybeT $ getRunningProcessOnWindow $ windowName ++ ":1"
       gitBranch <- runMaybeT $ getBranchOnWindow $ windowName ++ ":1"
+      changedFiles <- runMaybeT $ getNumberOfChangedFiles $ windowName ++ ":1"
+      untrackedFiles <- runMaybeT $ getNumberOfUntrackedFiles $ windowName ++ ":1"
       let processNameValue = fromMaybe "" processName
       let gitBranchValue = fromMaybe "" gitBranch
-      return ProcessOnWindow{ windowName=windowName, processName=processNameValue, branch=gitBranchValue}
+      let changedFilesValue = show $ fromMaybe 0 changedFiles
+      let untrackedFilesValue = show $ fromMaybe 0 untrackedFiles
+      return ProcessOnWindow{ windowName=windowName, processName=processNameValue, branch=gitBranchValue, changedFiles=changedFilesValue, untrackedFiles=untrackedFilesValue}
 
 executeScripts :: String -> WindowScript -> IO()
 executeScripts targetBranch window = do 
