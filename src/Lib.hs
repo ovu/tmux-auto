@@ -21,6 +21,7 @@ import Control.Monad
 import System.Exit
 import Text.Printf
 import Data.List.Split
+import System.Directory (getCurrentDirectory, setCurrentDirectory)
 import Data.String.Utils (strip, replace)
 
 someFunc :: IO ()
@@ -86,11 +87,14 @@ executeScriptOnTmuxWindow windowNameAndPane scripts = do
 getNumberOfChangedFiles :: String -> MaybeT IO Int
 getNumberOfChangedFiles windowNameAndPane = do
         windowDir <-  getWindowCurrentDirectory windowNameAndPane
+        currentDir <- lift getCurrentDirectory
+        _ <- lift $ setCurrentDirectory windowDir
         ( exitCode, commandResult, _ ) <- lift $ readProcessWithExitCode "bash" ["-c", "git --git-dir " ++ windowDir ++  "/.git diff --name-status"] []
         guard $ exitCode == ExitSuccess
         let changedLines = lines commandResult
         let unmergedFiles = length $ getUnmergedLines changedLines
         let changedFiles = length changedLines - unmergedFiles
+        _ <- lift $ setCurrentDirectory currentDir
         return changedFiles
     where
       getUnmergedLines = filter $ isPrefixOf "U"
@@ -98,10 +102,13 @@ getNumberOfChangedFiles windowNameAndPane = do
 getNumberOfUntrackedFiles :: String -> MaybeT IO Int
 getNumberOfUntrackedFiles windowNameAndPane = do
         windowDir <-  getWindowCurrentDirectory windowNameAndPane
+        currentDir <- lift getCurrentDirectory
+        _ <- lift $ setCurrentDirectory windowDir
         ( exitCode, commandResult, _ ) <- lift $ readProcessWithExitCode "bash" ["-c", "git --git-dir " ++ windowDir ++  "/.git status --s -uall"] []
         guard $ exitCode == ExitSuccess
         let statusLines = lines commandResult
         let untrackedFiles = length $ getUntrackedLines statusLines
+        _ <- lift $ setCurrentDirectory currentDir
         return untrackedFiles
     where getUntrackedLines = filter $ isPrefixOf "??"
 

@@ -33,6 +33,7 @@ library
      , transformers
      , split , MissingH >= 1.4.0.1
      , text >= 1.2.2.2
+     , directory >= 1.3.0.0
   exposed-modules:
       Lib
   other-modules:
