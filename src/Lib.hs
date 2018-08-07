@@ -90,12 +90,15 @@ getNumberOfChangedFiles windowNameAndPane = do
         currentDir <- lift getCurrentDirectory
         _ <- lift $ setCurrentDirectory windowDir
         ( exitCode, commandResult, _ ) <- lift $ readProcessWithExitCode "bash" ["-c", "git --git-dir " ++ windowDir ++  "/.git diff --name-status"] []
-        guard $ exitCode == ExitSuccess
-        let changedLines = lines commandResult
-        let unmergedFiles = length $ getUnmergedLines changedLines
-        let changedFiles = length changedLines - unmergedFiles
-        _ <- lift $ setCurrentDirectory currentDir
-        return changedFiles
+        if exitCode == ExitSuccess then do
+          let changedLines = lines commandResult
+          let unmergedFiles = length $ getUnmergedLines changedLines
+          let changedFiles = length changedLines - unmergedFiles
+          _ <- lift $ setCurrentDirectory currentDir
+          return changedFiles
+        else do
+          _ <- lift $ setCurrentDirectory currentDir
+          MaybeT $ return Nothing
     where
       getUnmergedLines = filter $ isPrefixOf "U"
 
@@ -105,11 +108,14 @@ getNumberOfUntrackedFiles windowNameAndPane = do
         currentDir <- lift getCurrentDirectory
         _ <- lift $ setCurrentDirectory windowDir
         ( exitCode, commandResult, _ ) <- lift $ readProcessWithExitCode "bash" ["-c", "git --git-dir " ++ windowDir ++  "/.git status --s -uall"] []
-        guard $ exitCode == ExitSuccess
-        let statusLines = lines commandResult
-        let untrackedFiles = length $ getUntrackedLines statusLines
-        _ <- lift $ setCurrentDirectory currentDir
-        return untrackedFiles
+        if exitCode == ExitSuccess then do
+          let statusLines = lines commandResult
+          let untrackedFiles = length $ getUntrackedLines statusLines
+          _ <- lift $ setCurrentDirectory currentDir
+          return untrackedFiles
+        else do
+          _ <- lift $ setCurrentDirectory currentDir
+          MaybeT $ return  Nothing
     where getUntrackedLines = filter $ isPrefixOf "??"
 
 -- Helper functions
