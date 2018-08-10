@@ -50,24 +50,24 @@ getWindowCurrentDirectory windowNameAndPane = do
     return $ (removeEndOfLine . removeSingleQuotes) windowDir
 
 getBranchOnWindow :: String -> MaybeT IO String
-getBranchOnWindow windowNameAndPane = do 
-    windowDir <-  getWindowCurrentDirectory windowNameAndPane
+getBranchOnWindow windowName = do
+    windowDir <-  getWindowCurrentDirectory windowName
     ( exitCodeChild, dirGitBranch, _ ) <- lift $ 
                                             readProcessWithExitCode "bash" ["-c", "git --git-dir " ++  windowDir ++ "/.git rev-parse --abbrev-ref HEAD"] []
     guard ( exitCodeChild == ExitSuccess )
     return $ removeEndOfLine dirGitBranch
 
 gitPullOnWindow :: String -> MaybeT IO String
-gitPullOnWindow windowNameAndPane = do 
-    windowDir <-  getWindowCurrentDirectory windowNameAndPane
+gitPullOnWindow windowName = do
+    windowDir <-  getWindowCurrentDirectory windowName
     ( exitCodeChild, gitPullResult, _ ) <- lift $ 
                                             readProcessWithExitCode "bash" ["-c", "git --git-dir " ++  windowDir ++ "/.git pull"] []
     guard ( exitCodeChild == ExitSuccess )
     return gitPullResult
 
 getAllGitRemoteBranches :: String -> MaybeT IO [String]
-getAllGitRemoteBranches windowNameAndPane = do 
-    windowDir <-  getWindowCurrentDirectory windowNameAndPane
+getAllGitRemoteBranches windowName = do 
+    windowDir <-  getWindowCurrentDirectory windowName
     ( exitCodeChild, gitRemoteBranchesResult, _ ) <- lift $ 
                                             readProcessWithExitCode "bash" ["-c", "git --git-dir " ++  windowDir ++ "/.git branch --remote"] []
     guard ( exitCodeChild == ExitSuccess )

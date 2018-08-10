@@ -71,42 +71,46 @@ main = do
       return ProcessOnWindow{ windowName=windowName, processName=processNameValue, branch=gitBranchValue, changedFiles=changedFilesValue, untrackedFiles=untrackedFilesValue}
 
 executeScripts :: String -> WindowScript -> IO()
-executeScripts targetBranch window = do 
+executeScripts targetBranch window = do
   let windowName = name window
   let windowPane = windowName ++ ":1"
   printInGreenLn $ "Updating ---> " ++ windowName
+  _ <- gitPullAndPrintResult windowName
+  gitBranchesValue <- getAllBranches windowName
+  _ <- mapM putStrLn gitBranchesValue
+  currentBranchValue <- getCurrentBranch windowName
+  printInYellowLn $ "Current branch:" ++ currentBranchValue
+  _ <- runMaybeT $ executeScriptOnTmuxWindow windowPane (scriptInitial window)
+  let matchedBranch = matchBranchInBranches gitBranchesValue targetBranch
+  changeBranchIfPossibleAndExecScript windowPane matchedBranch (scriptBeforeChangingBranch window)
+  _ <- runMaybeT $ executeScriptOnTmuxWindow windowPane (scriptFinal window)
+  print "Finished"
+
+changeBranchIfPossibleAndExecScript :: String ->  Maybe String -> [String] -> IO ()
+changeBranchIfPossibleAndExecScript windowPane matchedBranch scriptsBeforeChangingBranch =
+  case matchedBranch of
+    Just newBranch -> do
+      beforeChangingRes <- runMaybeT $ executeScriptOnTmuxWindow windowPane scriptsBeforeChangingBranch
+      printInMagentaLn $ "Changing to branch:" ++ newBranch
+      _ <- runMaybeT $ executeScriptOnTmuxWindow windowPane ["git checkout " ++ newBranch, "Enter"]
+      return ()
+    Nothing -> putStrLn "Already on branch. Branch not changed"
+
+gitPullAndPrintResult :: String -> IO ()
+gitPullAndPrintResult windowName = do
   pullResult <- runMaybeT $ gitPullOnWindow windowName
   let pullResultValue = fromMaybe "" pullResult
   putStrLn $ "Git pull result:" ++ pullResultValue
+
+getAllBranches :: String -> IO [String]
+getAllBranches windowName = do
   gitBranches <- runMaybeT $ getAllGitRemoteBranches windowName
-  let gitBranchesValue = fromMaybe [] gitBranches
-  _ <- mapM putStrLn gitBranchesValue
+  return $ fromMaybe [] gitBranches
+
+getCurrentBranch :: String -> IO String
+getCurrentBranch windowName = do
   currentBranch <- runMaybeT $ getBranchOnWindow windowName
-  let currentBranchValue = fromMaybe "" currentBranch
-  printInYellowLn $ "Current branch:" ++ currentBranchValue
-  let changeBranch = wantsToChangeBranch currentBranch gitBranches targetBranch
-  let changeBranchValue = fromMaybe (False, "") changeBranch
-  putStrLn $ show changeBranch
-  resultInitialScripts <- runMaybeT $ executeScriptOnTmuxWindow windowPane (scriptInitial window)
-  putStrLn $ "Initial script result:" ++ show resultInitialScripts
-  if fst changeBranchValue then do 
-    beforeChangingRes <- runMaybeT $ executeScriptOnTmuxWindow windowPane (scriptBeforeChangingBranch window)
-    putStrLn $ "Before changing branch result:" ++  show beforeChangingRes
-    printInMagentaLn $ "Changing to branch:" ++ snd changeBranchValue
-    changeBranchRes <- runMaybeT $ executeScriptOnTmuxWindow windowPane ["git checkout " ++ snd changeBranchValue, "Enter"]
-    putStrLn $ "Checkout branch result:" ++  show changeBranchRes
-  else
-    putStrLn "Already on branch. Branch not changed"
-  resultFinalScripts <- runMaybeT $ executeScriptOnTmuxWindow windowPane (scriptFinal window)
-  putStrLn $ "Final script result:" ++ show resultFinalScripts
-
-wantsToChangeBranch :: Maybe String -> Maybe [String] -> String -> Maybe (Bool, String)
-wantsToChangeBranch currentBranch gitBranches targetBranch = do
-    current <- currentBranch
-    branches <- gitBranches 
-    matchedBranch <- matchBranchInBranches branches targetBranch
-    return (matchedBranch /= current, matchedBranch)
-
+  return $ fromMaybe "" currentBranch
 
 matchBranchInBranches :: [String] -> String -> Maybe String
 matchBranchInBranches listOfBranches branch =
