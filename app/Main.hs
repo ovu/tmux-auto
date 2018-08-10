@@ -49,13 +49,12 @@ main = do
                        return []
         Right ps -> return ps
   branchNameArgument <- getArgs
-  let targetBranchMaybe = headMay branchNameArgument
-  case targetBranchMaybe of 
-    Nothing -> putStrLn "Showing status"
-    Just targetBranch -> forM_ listOfWindows (executeScripts targetBranch)
-  putStrLn "---------------------------"
-  status <- forM listOfWindows getStatus
-  T.printTable  status
+  case branchNameArgument of 
+    [targetBranch, "-nf"] -> forM_ listOfWindows (executeScripts targetBranch False)
+    [targetBranch] -> forM_ listOfWindows (executeScripts targetBranch True)
+    [] -> do putStrLn "Showing status"
+             status <- forM listOfWindows getStatus
+             T.printTable  status
   where
     getStatus window = do
       let windowName = name window
@@ -70,8 +69,8 @@ main = do
       let untrackedFilesValue = show $ fromMaybe 0 untrackedFiles
       return ProcessOnWindow{ windowName=windowName, processName=processNameValue, branch=gitBranchValue, changedFiles=changedFilesValue, untrackedFiles=untrackedFilesValue}
 
-executeScripts :: String -> WindowScript -> IO()
-executeScripts targetBranch window = do
+executeScripts :: String -> Bool -> WindowScript -> IO()
+executeScripts targetBranch executeFinal window = do
   let windowName = name window
   let windowPane = windowName ++ ":1"
   printInGreenLn $ "Updating ---> " ++ windowName
@@ -83,7 +82,11 @@ executeScripts targetBranch window = do
   _ <- runMaybeT $ executeScriptOnTmuxWindow windowPane (scriptInitial window)
   let matchedBranch = matchBranchInBranches gitBranchesValue targetBranch
   changeBranchIfPossibleAndExecScript windowPane matchedBranch (scriptBeforeChangingBranch window)
-  _ <- runMaybeT $ executeScriptOnTmuxWindow windowPane (scriptFinal window)
+  if executeFinal then do
+    _ <- runMaybeT $ executeScriptOnTmuxWindow windowPane (scriptFinal window)
+    printInYellowLn "Executing final scripts"
+  else 
+    print "Skipping final scripts"
   print "Finished"
 
 changeBranchIfPossibleAndExecScript :: String ->  Maybe String -> [String] -> IO ()
