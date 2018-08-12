@@ -49,12 +49,13 @@ main = do
                        return []
         Right ps -> return ps
   branchNameArgument <- getArgs
-  case branchNameArgument of 
+  case branchNameArgument of
     [targetBranch, "-nf"] -> forM_ listOfWindows (executeScripts targetBranch False)
     [targetBranch] -> forM_ listOfWindows (executeScripts targetBranch True)
-    [] -> do putStrLn "Showing status"
-             status <- forM listOfWindows getStatus
-             T.printTable  status
+    [] -> return ()
+  putStrLn "Showing status"
+  status <- forM listOfWindows getStatus
+  T.printTable  status
   where
     getStatus window = do
       let windowName = name window
