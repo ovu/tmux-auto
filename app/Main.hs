@@ -82,7 +82,7 @@ executeScripts targetBranch executeFinal window = do
   printInYellowLn $ "Current branch:" ++ currentBranchValue
   _ <- runMaybeT $ executeScriptOnTmuxWindow windowPane (scriptInitial window)
   let matchedBranch = matchBranchInBranches gitBranchesValue targetBranch
-  changeBranchIfPossibleAndExecScript windowPane matchedBranch (scriptBeforeChangingBranch window)
+  changeBranchIfPossibleAndExecScript windowPane currentBranchValue matchedBranch (scriptBeforeChangingBranch window)
   if executeFinal then do
     _ <- runMaybeT $ executeScriptOnTmuxWindow windowPane (scriptFinal window)
     printInYellowLn "Executing final scripts"
@@ -90,14 +90,17 @@ executeScripts targetBranch executeFinal window = do
     print "Skipping final scripts"
   print "Finished"
 
-changeBranchIfPossibleAndExecScript :: String ->  Maybe String -> [String] -> IO ()
-changeBranchIfPossibleAndExecScript windowPane matchedBranch scriptsBeforeChangingBranch =
+changeBranchIfPossibleAndExecScript :: String -> String ->  Maybe String -> [String] -> IO ()
+changeBranchIfPossibleAndExecScript windowPane currentBranch matchedBranch scriptsBeforeChangingBranch =
   case matchedBranch of
-    Just newBranch -> do
-      beforeChangingRes <- runMaybeT $ executeScriptOnTmuxWindow windowPane scriptsBeforeChangingBranch
-      printInMagentaLn $ "Changing to branch:" ++ newBranch
-      _ <- runMaybeT $ executeScriptOnTmuxWindow windowPane ["git checkout " ++ newBranch, "Enter"]
-      return ()
+    Just newBranch ->
+      if currentBranch /= newBranch then do
+        beforeChangingRes <- runMaybeT $ executeScriptOnTmuxWindow windowPane scriptsBeforeChangingBranch
+        printInMagentaLn $ "Changing to branch:" ++ newBranch
+        _ <- runMaybeT $ executeScriptOnTmuxWindow windowPane ["git checkout " ++ newBranch, "Enter"]
+        return ()
+      else 
+        putStrLn "Matched and current branch are the same. Branch not changed"
     Nothing -> putStrLn "Already on branch. Branch not changed"
 
 gitPullAndPrintResult :: String -> IO ()
