@@ -50,24 +50,24 @@ getWindowCurrentDirectory windowNameAndPane = do
     return $ (removeEndOfLine . removeSingleQuotes) windowDir
 
 getBranchOnWindow :: String -> MaybeT IO String
-getBranchOnWindow windowName = do
-    windowDir <-  getWindowCurrentDirectory windowName
+getBranchOnWindow windowNameAndPane = do 
+    windowDir <-  getWindowCurrentDirectory windowNameAndPane
     ( exitCodeChild, dirGitBranch, _ ) <- lift $ 
                                             readProcessWithExitCode "bash" ["-c", "git --git-dir " ++  windowDir ++ "/.git rev-parse --abbrev-ref HEAD"] []
     guard ( exitCodeChild == ExitSuccess )
     return $ removeEndOfLine dirGitBranch
 
 gitPullOnWindow :: String -> MaybeT IO String
-gitPullOnWindow windowName = do
-    windowDir <-  getWindowCurrentDirectory windowName
+gitPullOnWindow windowNameAndPane = do 
+    windowDir <-  getWindowCurrentDirectory windowNameAndPane
     ( exitCodeChild, gitPullResult, _ ) <- lift $ 
                                             readProcessWithExitCode "bash" ["-c", "git --git-dir " ++  windowDir ++ "/.git pull"] []
     guard ( exitCodeChild == ExitSuccess )
     return gitPullResult
 
 getAllGitRemoteBranches :: String -> MaybeT IO [String]
-getAllGitRemoteBranches windowName = do 
-    windowDir <-  getWindowCurrentDirectory windowName
+getAllGitRemoteBranches windowNameAndPane = do 
+    windowDir <-  getWindowCurrentDirectory windowNameAndPane
     ( exitCodeChild, gitRemoteBranchesResult, _ ) <- lift $ 
                                             readProcessWithExitCode "bash" ["-c", "git --git-dir " ++  windowDir ++ "/.git branch --remote"] []
     guard ( exitCodeChild == ExitSuccess )
@@ -75,7 +75,7 @@ getAllGitRemoteBranches windowName = do
   where
     removeAllEmptyLines = filter (/= "")
     splitOnEndOfLine = splitOn "\n"
-    removeOrigin aString  = replace "origin/" "" aString
+    removeOrigin = replace "origin/" ""
 
 executeScriptOnTmuxWindow :: String -> [String] -> MaybeT IO String
 executeScriptOnTmuxWindow windowNameAndPane scripts = do
@@ -86,7 +86,7 @@ executeScriptOnTmuxWindow windowNameAndPane scripts = do
 
 getNumberOfChangedFiles :: String -> MaybeT IO Int
 getNumberOfChangedFiles windowNameAndPane = do
-        windowDir <-  getWindowCurrentDirectory windowNameAndPane
+        windowDir <- getWindowCurrentDirectory windowNameAndPane
         currentDir <- lift getCurrentDirectory
         _ <- lift $ setCurrentDirectory windowDir
         ( exitCode, commandResult, _ ) <- lift $ readProcessWithExitCode "bash" ["-c", "git --git-dir " ++ windowDir ++  "/.git diff --name-status"] []
@@ -104,7 +104,7 @@ getNumberOfChangedFiles windowNameAndPane = do
 
 getNumberOfUntrackedFiles :: String -> MaybeT IO Int
 getNumberOfUntrackedFiles windowNameAndPane = do
-        windowDir <-  getWindowCurrentDirectory windowNameAndPane
+        windowDir <- getWindowCurrentDirectory windowNameAndPane
         currentDir <- lift getCurrentDirectory
         _ <- lift $ setCurrentDirectory windowDir
         ( exitCode, commandResult, _ ) <- lift $ readProcessWithExitCode "bash" ["-c", "git --git-dir " ++ windowDir ++  "/.git status --s -uall"] []
@@ -126,4 +126,4 @@ removeSingleQuotes :: String -> String
 removeSingleQuotes = filter (/= '\'')
 
 removeCommandTitle :: String -> String
-removeCommandTitle titleWithProcessName = replace  "COMMAND" "" titleWithProcessName
+removeCommandTitle = replace  "COMMAND" ""
